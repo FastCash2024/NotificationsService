@@ -81,29 +81,43 @@ export const sendSMSOtp = async (req, res) => {
 
 export const getSmsLogs = async (req, res) => {
   try {
-    const { limit = 5, page = 1 } = req.query;
+    const { remitente, receptor, limit = 10, page = 1 } = req.query;
 
+    const filter = {};
+    if (remitente) {
+      filter.remitenteDeSms = { $regex: remitente, $options: "i" };
+    }
+    if (receptor) {
+      filter.numeroDeTelefonoMovil = { $regex: receptor, $options: "i" };
+    }
+
+    // Convertir y validar limit y page
     const limitInt = parseInt(limit, 10);
     const pageInt = parseInt(page, 10);
+    if (isNaN(limitInt) || limitInt <= 0) return res.status(400).json({ message: "Limit debe ser un número mayor a 0." });
+    if (isNaN(pageInt) || pageInt <= 0) return res.status(400).json({ message: "Page debe ser un número mayor a 0." });
 
     const skip = (pageInt - 1) * limitInt;
 
-    const smsLogs = await SmsSendModel.find()
+    // Aplicar el filtro correctamente
+    const smsLogs = await SmsSendModel.find(filter)
       .sort({ _id: -1 })
       .limit(limitInt)
       .skip(skip);
 
+    // Formatear la fecha de envío
     const formattedLogs = smsLogs.map(log => {
-      const fecha = new Date(log.fechaDeEnvio); // Convertir a Date
+      const fecha = new Date(log.fechaDeEnvio);
       return {
-        ...log.toObject(), // Convertir a un objeto plano
-        fechaDeEnvio: isNaN(fecha.getTime()) ? log.fechaDeEnvio : fecha.toISOString().split('T')[0], // Validar conversión
+        ...log.toObject(),
+        fechaDeEnvio: !isNaN(fecha.getTime()) ? fecha.toISOString().split('T')[0] : log.fechaDeEnvio,
       };
     });
-    // Obtener el total de documentos
-    const totalDocuments = await SmsSendModel.countDocuments();
 
-    // Calcular el numero total de páginas
+    // Obtener el total de documentos aplicando el filtro
+    const totalDocuments = await SmsSendModel.countDocuments(filter);
+
+    // Calcular total de páginas
     const totalPages = Math.ceil(totalDocuments / limitInt);
 
     res.json({
@@ -117,6 +131,7 @@ export const getSmsLogs = async (req, res) => {
     res.status(500).json({ message: "Error al obtener los registros de SMS." });
   }
 };
+
 
 // export const verificarSMS2 = async (req, res) => {
 //   const { to, code } = req.body;
