@@ -31,7 +31,6 @@ export const getChat = async (req, res) => {
             return res.status(400).json({ message: "El subId es obligatorio" });
         }
 
-        // 🔹 Forzar que subId sea String para la consulta
         const filter = { subId: String(subId) };
 
         limit = parseInt(limit);
@@ -40,8 +39,6 @@ export const getChat = async (req, res) => {
         if (isNaN(page) || page <= 0) page = 1;
 
         const skip = (page - 1) * limit;
-
-        // 🔹 Imprimir la consulta antes de ejecutarla
         
         const mensajes = await ChatModel.find(filter)
             .sort({ fecha: -1 })
